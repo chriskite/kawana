@@ -2,11 +2,32 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"github.com/chriskite/kawana/server"
 	"github.com/rlmcpherson/s3gof3r"
 	"log"
 	"runtime"
 )
+
+type options struct {
+	port            int
+	dataDir         string
+	s3Bucket        string
+	persistInterval int
+	backupInterval  int
+	procs           int
+}
+
+func (o options) String() string {
+	s := ""
+	s += fmt.Sprintf("port: %d, ", o.port)
+	s += fmt.Sprintf("dataDir: %s, ", o.dataDir)
+	s += fmt.Sprintf("s3Bucket: %s, ", o.s3Bucket)
+	s += fmt.Sprintf("persistInterval: %d, ", o.persistInterval)
+	s += fmt.Sprintf("backupInterval: %d, ", o.backupInterval)
+	s += fmt.Sprintf("procs: %d", o.procs)
+	return s
+}
 
 func main() {
 	port := flag.Int("port", 9291, "port number")
@@ -17,15 +38,30 @@ func main() {
 	procs := flag.Int("procs", 1, "GOMAXPROCS")
 	flag.Parse()
 
-	runtime.GOMAXPROCS(*procs)
+	opts := options{
+		port:            *port,
+		dataDir:         *dataDir,
+		s3Bucket:        *s3Bucket,
+		persistInterval: *persistInterval,
+		backupInterval:  *backupInterval,
+		procs:           *procs,
+	}
 
-	if *backupInterval > 0 && *s3Bucket != "" {
-		err := testS3(*s3Bucket)
-		if err != nil {
-			log.Fatal(err)
+	log.Println("Kawana startup -", opts)
+
+	runtime.GOMAXPROCS(opts.procs)
+
+	if opts.backupInterval > 0 {
+		if opts.s3Bucket != "" {
+			err := testS3(opts.s3Bucket)
+			if err != nil {
+				log.Fatal(err)
+			}
+		} else {
+			log.Fatal("Backup enabled but s3Bucket not specified")
 		}
 	}
-	server := server.New(*port, *dataDir, *persistInterval, *backupInterval, *s3Bucket)
+	server := server.New(opts.port, opts.dataDir, opts.persistInterval, opts.backupInterval, opts.s3Bucket)
 	server.Start()
 }
 

@@ -401,12 +401,10 @@ func (store *IPDataStore) Persist() error {
 }
 
 func (store *IPDataStore) drainWAL() {
-	log.Println("Draining WAL...")
 	ips := store.wal.getIPs()
 	for _, ip := range ips {
 		moveIPData(store, store.wal, ip)
 	}
-	log.Println("Done draining WAL")
 }
 
 func moveIPData(dst, src syncIPDataStore, ip IPLong) {
