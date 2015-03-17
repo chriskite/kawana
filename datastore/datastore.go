@@ -158,6 +158,11 @@ func (store *IPDataStore) ForgiveIP(ip IPLong, impacts ImpactAmounts) IPData {
 	return ipData
 }
 
+// ipStoreForgive attempts to retrieve the specified IP's data from the store.
+// If the IP does not exist, it returns a zero IPData and false for existence.
+// If the IP does exist, it updates the record in place.
+//
+// Takes a read lock on the datastore
 func ipStoreForgive(store syncIPDataStore, ip IPLong, impacts ImpactAmounts) (ipData IPData, exists bool) {
 	store.RLock()
 	defer store.RUnlock()
@@ -171,7 +176,7 @@ func ipStoreForgive(store syncIPDataStore, ip IPLong, impacts ImpactAmounts) (ip
 	return *data, true
 }
 
-// insertIP attempts to insert the IPData into the store.
+// ipStoreInsert attempts to insert the IPData into the store.
 // If the IP does not yet exist in the map, it creates the datastructure and adds it.
 // If the IP already exists, it updates the existing record.
 //
@@ -192,12 +197,12 @@ func ipStoreInsert(store syncIPDataStore, ip IPLong, impact ImpactAmount, blackW
 	return *data
 }
 
-// updateIP attempts to retrieve the specified IP's data from the store.
+// ipStoreUpdate attempts to retrieve the specified IP's data from the store.
 // If the IP does not exist, it returns a zero IPData and false for existence.
 // If the IP does exist, it updates the record in place.
 //
 // Takes a read lock on the datastore
-func ipStoreUpdate(store syncIPDataStore, ip IPLong, impact ImpactAmount, blackWhite BWModifier) (IPData, bool) {
+func ipStoreUpdate(store syncIPDataStore, ip IPLong, impact ImpactAmount, blackWhite BWModifier) (ipData IPData, exists bool) {
 	store.RLock()
 	defer store.RUnlock()
 
@@ -208,7 +213,7 @@ func ipStoreUpdate(store syncIPDataStore, ip IPLong, impact ImpactAmount, blackW
 
 	data.impact(impact, blackWhite)
 
-	return *data, ok
+	return *data, true
 }
 
 func copyIPData(dst, src syncIPDataStore, ip IPLong) {
