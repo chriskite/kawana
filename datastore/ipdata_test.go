@@ -3,12 +3,8 @@ package datastore
 import (
 	. "gopkg.in/check.v1"
 	"math"
-	"testing"
 	"time"
 )
-
-// Hook up gocheck into the "go test" runner.
-func Test(t *testing.T) { TestingT(t) }
 
 type IPDataS struct{}
 
