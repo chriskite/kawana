@@ -1,26 +1,13 @@
 package datastore
 
 import (
-	"encoding/binary"
-	"errors"
-	"io"
 	"log"
-	"math"
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 )
 
 const kdbFile = "kawana.kdb"
-
-const encodingVersion uint32 = 1
-
-const (
-	walInactive int = iota
-	walWriting
-	walDraining
-)
 
 type BWModifier int
 
@@ -31,51 +18,6 @@ const (
 	BWBlacklist
 	BWUnBlacklist
 )
-
-// IPLong is an ipv4 address as a uint32
-type IPLong uint32
-
-// ImpactAmount is an integer representing the impact of an IP addr
-// over a particular time window
-type ImpactAmount uint32
-
-// ForgivenNum is an integer number of times an IP addr has been forgiven
-type ForgivenNum uint16
-
-// ImpactAmounts is a struct of 3 time windows' impacts
-type ImpactAmounts struct {
-	FiveMin, Hour, Day ImpactAmount
-}
-
-// StartTimes is a struct of 3 time window start times
-type StartTimes struct {
-	FiveMin, Hour, Day uint32
-}
-
-// IPData holds impact amounts, time window starts, forgiveness,
-// and white/black list info for an IP address
-type IPData struct {
-	Mutex      sync.RWMutex
-	CurImpacts ImpactAmounts
-	MaxImpacts ImpactAmounts
-	StartTimes StartTimes
-	Forgiven   ForgivenNum
-	BlackWhite byte
-}
-
-// IPDataMap is a map from IPLong to *IPData
-type IPDataMap map[IPLong]*IPData
-
-type walStatus struct {
-	sync.RWMutex
-	state int // one of the wal* constants
-}
-
-type ipWAL struct {
-	sync.RWMutex
-	m      IPDataMap
-	status walStatus
-}
 
 // IPDataStore is a lockable struct which holds data about IPs,
 // a write-ahead log, and options
@@ -94,20 +36,8 @@ type syncIPDataStore interface {
 	getMap() IPDataMap
 }
 
-type ipDataStoreEncoder struct {
-	w io.Writer
-}
-
-type ipDataStoreDecoder struct {
-	r io.Reader
-}
-
 func (store *IPDataStore) getMap() IPDataMap {
 	return store.m
-}
-
-func (wal *ipWAL) getMap() IPDataMap {
-	return wal.m
 }
 
 // New creates a new IPDataStore
@@ -154,12 +84,6 @@ func newFromFile(dataDir, s3Bucket string) (*IPDataStore, error) {
 	log.Println("Done loading")
 	newStore := &IPDataStore{m: m, dataDir: dataDir, s3Bucket: s3Bucket, wal: newIPWAL()}
 	return newStore, nil
-}
-
-func newIPWAL() *ipWAL {
-	wal := new(ipWAL)
-	wal.m = make(IPDataMap)
-	return wal
 }
 
 func (store *IPDataStore) ensureDataDirExists() error {
@@ -247,27 +171,6 @@ func ipStoreForgive(store syncIPDataStore, ip IPLong, impacts ImpactAmounts) (ip
 	return *data, true
 }
 
-func copyIPData(dst, src syncIPDataStore, ip IPLong) {
-	dst.Lock()
-	defer dst.Unlock()
-	src.RLock()
-	defer src.RUnlock()
-
-	_, exists := dst.getMap()[ip]
-	if exists {
-		return
-	}
-
-	srcIPData, exists := src.getMap()[ip]
-	if !exists {
-		return
-	}
-
-	dst.getMap()[ip] = new(IPData)
-
-	*dst.getMap()[ip] = *srcIPData
-}
-
 // insertIP attempts to insert the IPData into the store.
 // If the IP does not yet exist in the map, it creates the datastructure and adds it.
 // If the IP already exists, it updates the existing record.
@@ -308,85 +211,35 @@ func ipStoreUpdate(store syncIPDataStore, ip IPLong, impact ImpactAmount, blackW
 	return *data, ok
 }
 
-func blackWhiteIPData(data *IPData, blackWhite BWModifier) error {
-	switch blackWhite {
-	case BWWhitelist:
-		data.BlackWhite |= byte(0x01)
-		break
-	case BWUnWhitelist:
-		data.BlackWhite &= byte(0xFE)
-		break
-	case BWBlacklist:
-		data.BlackWhite |= byte(0x02)
-		break
-	case BWUnBlacklist:
-		data.BlackWhite &= byte(0xFD)
-		break
-	default:
-		return errors.New("Unknown BlackWhite modifier")
-	}
+func copyIPData(dst, src syncIPDataStore, ip IPLong) {
+	dst.Lock()
+	defer dst.Unlock()
+	src.RLock()
+	defer src.RUnlock()
 
-	return nil
-}
-
-// impactIPData updates the IPData arg in place by adding the impact to the time windows.
-//
-// Takes a write lock on the IPData
-func impactIPData(data *IPData, impact ImpactAmount, blackWhite BWModifier) {
-	data.Mutex.Lock()
-	defer data.Mutex.Unlock()
-
-	if blackWhite != BWNop {
-		err := blackWhiteIPData(data, blackWhite)
-		if err != nil {
-			log.Println(err)
-		}
-	}
-
-	if impact == 0 {
+	_, exists := dst.getMap()[ip]
+	if exists {
 		return
 	}
 
-	// five minute window
-	if time.Now().After(time.Unix(int64(data.StartTimes.FiveMin), 0).Add(5 * time.Minute)) {
-		data.StartTimes.FiveMin = uint32(time.Now().Unix())
-		data.CurImpacts.FiveMin = impact
-	} else {
-		data.CurImpacts.FiveMin = data.CurImpacts.FiveMin.add(impact)
+	srcIPData, exists := src.getMap()[ip]
+	if !exists {
+		return
 	}
-	data.MaxImpacts.FiveMin = max(data.CurImpacts.FiveMin, data.MaxImpacts.FiveMin)
 
-	// 1 hour window
-	if time.Now().After(time.Unix(int64(data.StartTimes.Hour), 0).Add(time.Hour)) {
-		data.StartTimes.Hour = uint32(time.Now().Unix())
-		data.CurImpacts.Hour = impact
-	} else {
-		data.CurImpacts.Hour = data.CurImpacts.Hour.add(impact)
-	}
-	data.MaxImpacts.Hour = max(data.CurImpacts.Hour, data.MaxImpacts.Hour)
+	dst.getMap()[ip] = new(IPData)
 
-	// 1 day window
-	if time.Now().After(time.Unix(int64(data.StartTimes.Day), 0).Add(24 * time.Hour)) {
-		data.StartTimes.Day = uint32(time.Now().Unix())
-		data.CurImpacts.Day = impact
-	} else {
-		data.CurImpacts.Day = data.CurImpacts.Day.add(impact)
-	}
-	data.MaxImpacts.Day = max(data.CurImpacts.Day, data.MaxImpacts.Day)
+	*dst.getMap()[ip] = *srcIPData
 }
 
-// forgive subtracts the given amounts from all the IPData's impact amounts
-func (data *IPData) forgive(impacts ImpactAmounts) {
-	data.MaxImpacts.FiveMin = data.MaxImpacts.FiveMin.sub(impacts.FiveMin)
-	data.CurImpacts.FiveMin = data.MaxImpacts.FiveMin
+func moveIPData(dst, src syncIPDataStore, ip IPLong) {
+	src.Lock()
+	defer src.Unlock()
+	dst.Lock()
+	defer dst.Unlock()
 
-	data.MaxImpacts.Hour = data.MaxImpacts.Hour.sub(impacts.Hour)
-	data.CurImpacts.Hour = data.MaxImpacts.Hour
-
-	data.MaxImpacts.Day = data.MaxImpacts.Day.sub(impacts.Day)
-	data.CurImpacts.Day = data.MaxImpacts.Day
-
-	data.Forgiven++
+	dst.getMap()[ip] = src.getMap()[ip]
+	delete(src.getMap(), ip)
 }
 
 // Persist asynchronously saves the data store to disk
@@ -405,27 +258,6 @@ func (store *IPDataStore) drainWAL() {
 	for _, ip := range ips {
 		moveIPData(store, store.wal, ip)
 	}
-}
-
-func moveIPData(dst, src syncIPDataStore, ip IPLong) {
-	src.Lock()
-	defer src.Unlock()
-	dst.Lock()
-	defer dst.Unlock()
-
-	dst.getMap()[ip] = src.getMap()[ip]
-	delete(src.getMap(), ip)
-}
-
-func (wal *ipWAL) getIPs() []IPLong {
-	wal.RLock()
-	defer wal.RUnlock()
-
-	var keys []IPLong
-	for k := range wal.m {
-		keys = append(keys, k)
-	}
-	return keys
 }
 
 func (store *IPDataStore) setWALStatus(state int) {
@@ -461,126 +293,4 @@ func (store *IPDataStore) writeToFile() error {
 
 func (store *IPDataStore) kdbPath() string {
 	return store.dataDir + string(filepath.Separator) + kdbFile
-}
-
-func newEncoder(w io.Writer) *ipDataStoreEncoder {
-	return &ipDataStoreEncoder{w: w}
-}
-
-func newDecoder(r io.Reader) *ipDataStoreDecoder {
-	return &ipDataStoreDecoder{r: r}
-}
-
-func (enc *ipDataStoreEncoder) encode(store *IPDataStore) error {
-	store.RLock()
-	defer store.RUnlock()
-
-	var buf [43]byte
-
-	// write encoding version
-	binary.LittleEndian.PutUint32(buf[0:4], uint32(encodingVersion))
-	_, err := enc.w.Write(buf[0:4])
-	if err != nil {
-		return err
-	}
-
-	for ip, ipData := range store.m {
-		// pack the ipData's individual data into a byte array
-		binary.LittleEndian.PutUint32(buf[0:4], uint32(ip))
-		binary.LittleEndian.PutUint32(buf[4:8], uint32(ipData.CurImpacts.FiveMin))
-		binary.LittleEndian.PutUint32(buf[8:12], uint32(ipData.CurImpacts.Hour))
-		binary.LittleEndian.PutUint32(buf[12:16], uint32(ipData.CurImpacts.Day))
-		binary.LittleEndian.PutUint32(buf[16:20], uint32(ipData.MaxImpacts.FiveMin))
-		binary.LittleEndian.PutUint32(buf[20:24], uint32(ipData.MaxImpacts.Hour))
-		binary.LittleEndian.PutUint32(buf[24:28], uint32(ipData.MaxImpacts.Day))
-		binary.LittleEndian.PutUint32(buf[28:32], uint32(ipData.StartTimes.FiveMin))
-		binary.LittleEndian.PutUint32(buf[32:36], uint32(ipData.StartTimes.Hour))
-		binary.LittleEndian.PutUint32(buf[36:40], uint32(ipData.StartTimes.Day))
-		binary.LittleEndian.PutUint16(buf[40:42], uint16(ipData.Forgiven))
-		buf[42] = ipData.BlackWhite
-
-		// write the buffer
-		_, err := enc.w.Write(buf[0:])
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (dec *ipDataStoreDecoder) decode(m *IPDataMap) error {
-	// read encoding version
-	var buf [43]byte
-	var version uint32
-
-	_, err := dec.r.Read(buf[0:4])
-	if err != nil {
-		return err
-	}
-	version = binary.LittleEndian.Uint32(buf[0:4])
-	if version != encodingVersion {
-		return errors.New("Wrong version kdb")
-	}
-
-FileLoop:
-	for {
-		var ip IPLong
-		ipData := new(IPData)
-
-		for num := 0; num < 43; {
-			n, err := dec.r.Read(buf[0:])
-			if err == io.EOF {
-				break FileLoop
-			} else if err != nil {
-				return err
-			}
-			num += n
-		}
-
-		// unpack buf into ip and the fields of IPData
-		ip = IPLong(binary.LittleEndian.Uint32(buf[0:4]))
-		ipData.CurImpacts.FiveMin = ImpactAmount(binary.LittleEndian.Uint32(buf[4:8]))
-		ipData.CurImpacts.Hour = ImpactAmount(binary.LittleEndian.Uint32(buf[8:12]))
-		ipData.CurImpacts.Day = ImpactAmount(binary.LittleEndian.Uint32(buf[12:16]))
-		ipData.MaxImpacts.FiveMin = ImpactAmount(binary.LittleEndian.Uint32(buf[16:20]))
-		ipData.MaxImpacts.Hour = ImpactAmount(binary.LittleEndian.Uint32(buf[20:24]))
-		ipData.MaxImpacts.Day = ImpactAmount(binary.LittleEndian.Uint32(buf[24:28]))
-		ipData.StartTimes.FiveMin = binary.LittleEndian.Uint32(buf[28:32])
-		ipData.StartTimes.Hour = binary.LittleEndian.Uint32(buf[32:36])
-		ipData.StartTimes.Day = binary.LittleEndian.Uint32(buf[36:40])
-		ipData.Forgiven = ForgivenNum(binary.LittleEndian.Uint16(buf[40:42]))
-		buf[42] = ipData.BlackWhite
-
-		(*m)[ip] = ipData
-	}
-
-	return nil
-}
-
-// add adds 2 impact amounts and returns the result.
-// If the result would be larger than a uint32, it instead returns MaxUint32
-func (a ImpactAmount) add(b ImpactAmount) ImpactAmount {
-	sum := uint64(a) + uint64(b)
-	if sum > uint64(math.MaxUint32) {
-		return math.MaxUint32
-	}
-	return ImpactAmount(sum)
-}
-
-// sub subtracts 2 impact amounts and returns the result.
-// If the result would be negative, it instead returns 0
-func (a ImpactAmount) sub(b ImpactAmount) ImpactAmount {
-	if b >= a {
-		return 0
-	}
-	return a - b
-}
-
-// max returns the larger of 2 impact amounts
-func max(a, b ImpactAmount) ImpactAmount {
-	if a > b {
-		return a
-	}
-	return b
 }
