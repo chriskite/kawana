@@ -187,7 +187,7 @@ func ipStoreInsert(store syncIPDataStore, ip IPLong, impact ImpactAmount, blackW
 		data = new(IPData)
 	}
 
-	impactIPData(data, impact, blackWhite)
+	data.impact(impact, blackWhite)
 	store.getMap()[ip] = data
 	return *data
 }
@@ -206,7 +206,7 @@ func ipStoreUpdate(store syncIPDataStore, ip IPLong, impact ImpactAmount, blackW
 		return IPData{}, false
 	}
 
-	impactIPData(data, impact, blackWhite)
+	data.impact(impact, blackWhite)
 
 	return *data, ok
 }

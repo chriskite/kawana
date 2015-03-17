@@ -42,7 +42,7 @@ type IPData struct {
 // IPDataMap is a map from IPLong to *IPData
 type IPDataMap map[IPLong]*IPData
 
-func blackWhiteIPData(data *IPData, blackWhite BWModifier) error {
+func (data *IPData) blackWhite(blackWhite BWModifier) error {
 	switch blackWhite {
 	case BWWhitelist:
 		data.BlackWhite |= byte(0x01)
@@ -66,12 +66,12 @@ func blackWhiteIPData(data *IPData, blackWhite BWModifier) error {
 // impactIPData updates the IPData arg in place by adding the impact to the time windows.
 //
 // Takes a write lock on the IPData
-func impactIPData(data *IPData, impact ImpactAmount, blackWhite BWModifier) {
+func (data *IPData) impact(impact ImpactAmount, blackWhite BWModifier) {
 	data.Mutex.Lock()
 	defer data.Mutex.Unlock()
 
 	if blackWhite != BWNop {
-		err := blackWhiteIPData(data, blackWhite)
+		err := data.blackWhite(blackWhite)
 		if err != nil {
 			log.Println(err)
 		}
