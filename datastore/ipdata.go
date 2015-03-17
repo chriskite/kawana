@@ -63,10 +63,16 @@ func (data *IPData) blackWhite(blackWhite BWModifier) error {
 	return nil
 }
 
-// impactIPData updates the IPData arg in place by adding the impact to the time windows.
+// impact updates the IPData arg in place by adding the impact to the time windows.
 //
 // Takes a write lock on the IPData
 func (data *IPData) impact(impact ImpactAmount, blackWhite BWModifier) {
+	data.impactAtTime(impact, blackWhite, time.Now())
+}
+
+// impactAtTime performs the real work of impact, and takes the current time as
+// a parameter to aid in testing.
+func (data *IPData) impactAtTime(impact ImpactAmount, blackWhite BWModifier, now time.Time) {
 	data.Mutex.Lock()
 	defer data.Mutex.Unlock()
 
@@ -82,8 +88,8 @@ func (data *IPData) impact(impact ImpactAmount, blackWhite BWModifier) {
 	}
 
 	// five minute window
-	if time.Now().After(time.Unix(int64(data.StartTimes.FiveMin), 0).Add(5 * time.Minute)) {
-		data.StartTimes.FiveMin = uint32(time.Now().Unix())
+	if now.After(time.Unix(int64(data.StartTimes.FiveMin), 0).Add(5 * time.Minute)) {
+		data.StartTimes.FiveMin = uint32(now.Unix())
 		data.CurImpacts.FiveMin = impact
 	} else {
 		data.CurImpacts.FiveMin = data.CurImpacts.FiveMin.add(impact)
@@ -91,8 +97,8 @@ func (data *IPData) impact(impact ImpactAmount, blackWhite BWModifier) {
 	data.MaxImpacts.FiveMin = max(data.CurImpacts.FiveMin, data.MaxImpacts.FiveMin)
 
 	// 1 hour window
-	if time.Now().After(time.Unix(int64(data.StartTimes.Hour), 0).Add(time.Hour)) {
-		data.StartTimes.Hour = uint32(time.Now().Unix())
+	if now.After(time.Unix(int64(data.StartTimes.Hour), 0).Add(time.Hour)) {
+		data.StartTimes.Hour = uint32(now.Unix())
 		data.CurImpacts.Hour = impact
 	} else {
 		data.CurImpacts.Hour = data.CurImpacts.Hour.add(impact)
@@ -100,8 +106,8 @@ func (data *IPData) impact(impact ImpactAmount, blackWhite BWModifier) {
 	data.MaxImpacts.Hour = max(data.CurImpacts.Hour, data.MaxImpacts.Hour)
 
 	// 1 day window
-	if time.Now().After(time.Unix(int64(data.StartTimes.Day), 0).Add(24 * time.Hour)) {
-		data.StartTimes.Day = uint32(time.Now().Unix())
+	if now.After(time.Unix(int64(data.StartTimes.Day), 0).Add(24 * time.Hour)) {
+		data.StartTimes.Day = uint32(now.Unix())
 		data.CurImpacts.Day = impact
 	} else {
 		data.CurImpacts.Day = data.CurImpacts.Day.add(impact)
