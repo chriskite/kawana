@@ -5,6 +5,7 @@ import (
 	"errors"
 	"expvar"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -100,13 +101,8 @@ func (server *Server) handleConnection(conn net.Conn) {
 	var buf [1]byte
 
 	// read the first byte which contains the command
-	n, err := conn.Read(buf[0:])
+	_, err := io.ReadFull(conn, buf[0:])
 	if err != nil {
-		log.Println(err)
-		return
-	}
-	if n != 1 {
-		log.Println("Failed to read command byte")
 		return
 	}
 
@@ -117,7 +113,7 @@ func (server *Server) handleConnection(conn net.Conn) {
 	}
 }
 
-func (server *Server) handleCommand(cmd command, conn net.Conn) error {
+func (server *Server) handleCommand(cmd command, conn io.ReadWriter) error {
 	atomic.AddUint64(&server.stats.cmdsThisSec, 1)
 	switch cmd {
 	case cmdLogIP:
@@ -131,17 +127,13 @@ func (server *Server) handleCommand(cmd command, conn net.Conn) error {
 	}
 }
 
-func (server *Server) handleBlackWhiteIP(conn net.Conn) error {
+func (server *Server) handleBlackWhiteIP(conn io.ReadWriter) error {
 	// BW command data is:
 	// [4 byte little endian IP][1 byte bw modifier]
 	var buf [5]byte
-	var n int
-	for recvd := 0; recvd < 5; {
-		n, err := conn.Read(buf[n:])
-		if err != nil {
-			return err
-		}
-		recvd += n
+	_, err := io.ReadFull(conn, buf[0:])
+	if err != nil {
+		return err
 	}
 
 	ip := binary.LittleEndian.Uint32(buf[0:4])
@@ -152,18 +144,13 @@ func (server *Server) handleBlackWhiteIP(conn net.Conn) error {
 	return writeIPData(ipData, conn)
 }
 
-func (server *Server) handleLogIP(conn net.Conn) error {
+func (server *Server) handleLogIP(conn io.ReadWriter) error {
 	// LogIP command data is:
 	// [4 byte little endian IP][4 byte little endian impact]
 	var buf [8]byte
-	var n int
-	num := len(buf)
-	for recvd := 0; recvd < num; {
-		n, err := conn.Read(buf[n:])
-		if err != nil {
-			return err
-		}
-		recvd += n
+	_, err := io.ReadFull(conn, buf[0:])
+	if err != nil {
+		return err
 	}
 
 	ip := binary.LittleEndian.Uint32(buf[0:4])
@@ -174,18 +161,13 @@ func (server *Server) handleLogIP(conn net.Conn) error {
 	return writeIPData(ipData, conn)
 }
 
-func (server *Server) handleForgiveIP(conn net.Conn) error {
+func (server *Server) handleForgiveIP(conn io.ReadWriter) error {
 	// ForgiveIP command data is:
 	// [4 byte little endian IP][4 byte little endian 5m impact][4 byte LE hour impact][4 byte LE day impact]
 	var buf [16]byte
-	var n int
-	num := len(buf)
-	for recvd := 0; recvd < num; {
-		n, err := conn.Read(buf[n:])
-		if err != nil {
-			return err
-		}
-		recvd += n
+	_, err := io.ReadFull(conn, buf[0:])
+	if err != nil {
+		return err
 	}
 
 	ip := binary.LittleEndian.Uint32(buf[0:4])
@@ -204,13 +186,13 @@ func (server *Server) handleForgiveIP(conn net.Conn) error {
 }
 
 // writeOK writes a single zero byte to the client to indicate success
-func writeOK(conn net.Conn) error {
+func writeOK(conn io.ReadWriter) error {
 	var buf [1]byte
 	_, err := conn.Write(buf[0:])
 	return err
 }
 
-func writeIPData(ipData datastore.IPData, conn net.Conn) error {
+func writeIPData(ipData datastore.IPData, conn io.ReadWriter) error {
 	var buf [15]byte
 	binary.LittleEndian.PutUint32(buf[0:4], uint32(ipData.MaxImpacts.FiveMin))
 	binary.LittleEndian.PutUint32(buf[4:8], uint32(ipData.MaxImpacts.Hour))

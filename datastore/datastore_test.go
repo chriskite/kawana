@@ -18,7 +18,7 @@ func checkForImpact(c *C, data IPData, amount ImpactAmount) {
 	c.Check(data.MaxImpacts.Day, Equals, amount)
 }
 
-func (s *IPDataS) TestLogIP(c *C) {
+func (s *DataStoreS) TestLogIP(c *C) {
 	store := New("/tmp", "")
 	ip := IPLong(0)
 	amount := ImpactAmount(64)
@@ -38,7 +38,7 @@ func (s *IPDataS) TestLogIP(c *C) {
 	c.Check(data.BlackWhite, Equals, byte(3))
 }
 
-func (s *IPDataS) TestLogNewIPWAL(c *C) {
+func (s *DataStoreS) TestLogNewIPWAL(c *C) {
 	store := New("/tmp", "")
 	ip := IPLong(0)
 	amount := ImpactAmount(64)
@@ -84,7 +84,7 @@ func (s *IPDataS) TestLogNewIPWAL(c *C) {
 	c.Check(data.BlackWhite, Equals, byte(0))
 }
 
-func (s *IPDataS) TestLogExistingIPWAL(c *C) {
+func (s *DataStoreS) TestLogExistingIPWAL(c *C) {
 	store := New("/tmp", "")
 	ip := IPLong(0)
 	amount := ImpactAmount(64)
