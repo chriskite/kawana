@@ -2,6 +2,7 @@ package datastore
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"sync"
@@ -41,6 +42,67 @@ type IPData struct {
 
 // IPDataMap is a map from IPLong to *IPData
 type IPDataMap map[IPLong]*IPData
+
+type Stringser interface {
+	Strings() []string
+}
+
+func (a ImpactAmounts) Strings() []string {
+	return []string{
+		fmt.Sprintf("%d", a.FiveMin),
+		fmt.Sprintf("%d", a.Hour),
+		fmt.Sprintf("%d", a.Day),
+	}
+}
+
+func (s StartTimes) Strings() []string {
+
+	return []string{
+		fmt.Sprintf("%d", s.FiveMin),
+		fmt.Sprintf("%d", s.Hour),
+		fmt.Sprintf("%d", s.Day),
+	}
+}
+
+func (f ForgivenNum) Strings() []string {
+	return []string{fmt.Sprintf("%d", f)}
+}
+
+func (data *IPData) Strings() []string {
+	s := []Stringser{
+		data.CurImpacts,
+		data.MaxImpacts,
+		data.StartTimes,
+		data.Forgiven,
+	}
+
+	result := []string{}
+	for _, stringser := range s {
+		result = append(result, stringser.Strings()...)
+	}
+	result = append(result, fmt.Sprintf("%d", data.BlackWhite))
+	return result
+}
+
+func (ip IPLong) String() string {
+	return fmt.Sprintf("%d.%d.%d.%d", byte(ip>>24), byte(ip>>16), byte(ip>>8), byte(ip))
+}
+
+func IPDataHeaders() []string {
+	return []string{
+		"CurFiveMin",
+		"CurHour",
+		"CurDay",
+		"MaxFiveMin",
+		"MaxHour",
+		"MaxDay",
+		"TimeFiveMin",
+		"TimeHour",
+		"TimeDay",
+		"Forgiven",
+		"BlackWhite",
+	}
+}
 
 func (data *IPData) blackWhite(blackWhite BWModifier) error {
 	switch blackWhite {

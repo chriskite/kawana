@@ -75,9 +75,9 @@ func newFromFile(dataDir, s3Bucket string) (*IPDataStore, error) {
 	}
 
 	log.Println("Loading " + kdbFile + "...")
-	dec := newDecoder(file)
+	dec := NewDecoder(file)
 	m := make(IPDataMap)
-	err = dec.decode(&m)
+	err = dec.Decode(&m)
 	if err != nil {
 		return new(IPDataStore), err
 	}

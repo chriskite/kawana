@@ -6,15 +6,15 @@ import (
 	"io"
 )
 
-type ipDataStoreDecoder struct {
+type IPDataStoreDecoder struct {
 	r io.Reader
 }
 
-func newDecoder(r io.Reader) *ipDataStoreDecoder {
-	return &ipDataStoreDecoder{r: r}
+func NewDecoder(r io.Reader) *IPDataStoreDecoder {
+	return &IPDataStoreDecoder{r: r}
 }
 
-func (dec *ipDataStoreDecoder) decode(m *IPDataMap) error {
+func (dec *IPDataStoreDecoder) Decode(m *IPDataMap) error {
 	// read encoding version
 	var buf [43]byte
 	var version uint32
