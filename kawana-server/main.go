@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/chriskite/kawana/server"
 	"github.com/rlmcpherson/s3gof3r"
 	"log"
 	"runtime"
@@ -61,7 +60,7 @@ func main() {
 			log.Fatal("Backup enabled but s3Bucket not specified")
 		}
 	}
-	server := server.New(opts.port, opts.dataDir, opts.persistInterval, opts.backupInterval, opts.s3Bucket)
+	server := New(opts.port, opts.dataDir, opts.persistInterval, opts.backupInterval, opts.s3Bucket)
 	server.Start()
 }
 

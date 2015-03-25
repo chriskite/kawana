@@ -16,11 +16,11 @@ ENV PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
 RUN go get github.com/tools/godep
 ADD . /go/src/github.com/chriskite/kawana
 WORKDIR /go/src/github.com/chriskite/kawana
-RUN godep go install github.com/chriskite/kawana
+RUN godep go install github.com/chriskite/kawana/kawana-server
 
 # setup kawana service
 RUN mkdir /etc/service/kawana
-ADD kawana.sh /etc/service/kawana/run
+ADD run /etc/service/kawana/run
 
 # Clean up APT when done.
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
