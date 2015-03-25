@@ -8,6 +8,13 @@ import (
 	"os"
 )
 
+func check(err error) {
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+}
+
 func kdbExport(c *cli.Context) {
 	input := c.Args().First()
 	output := c.String("output")
@@ -19,15 +26,12 @@ func kdbExport(c *cli.Context) {
 	}
 
 	inputFile, err := os.Open(input)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	check(err)
+	defer inputFile.Close()
+
 	outputFile, err := os.Create(output)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	check(err)
+	defer outputFile.Close()
 
 	store := &datastore.IPDataMap{}
 	dec := datastore.NewDecoder(inputFile)
@@ -35,17 +39,12 @@ func kdbExport(c *cli.Context) {
 
 	writer := csv.NewWriter(outputFile)
 	writer.Write(append([]string{"IP"}, datastore.IPDataHeaders()...))
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	check(err)
+
 	for ip, data := range *store {
 		record := append([]string{ip.String()}, data.Strings()...)
 		err := writer.Write(record)
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
+		check(err)
 	}
 	writer.Flush()
 
