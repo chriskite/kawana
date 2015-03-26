@@ -33,19 +33,17 @@ func kdbExport(c *cli.Context) {
 	check(err)
 	defer outputFile.Close()
 
-	store := &datastore.IPDataMap{}
 	dec := datastore.NewDecoder(inputFile)
-	dec.Decode(store)
 
 	writer := csv.NewWriter(outputFile)
 	writer.Write(append([]string{"IP"}, datastore.IPDataHeaders()...))
 	check(err)
 
-	for ip, data := range *store {
-		record := append([]string{ip.String()}, data.Strings()...)
+	dec.DecodeEvery(func(ip datastore.IPLong, ipData *datastore.IPData) {
+		record := append([]string{ip.String()}, ipData.Strings()...)
 		err := writer.Write(record)
 		check(err)
-	}
+	})
 	writer.Flush()
 
 	fmt.Println("Exported contents of " + input + " to " + output)
