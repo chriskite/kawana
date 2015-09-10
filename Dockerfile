@@ -1,4 +1,4 @@
-FROM phusion/baseimage:0.9.16
+FROM phusion/baseimage:0.9.17
 
 # Use baseimage-docker's init system.
 CMD ["/sbin/my_init"]
@@ -15,8 +15,8 @@ ENV PATH=$PATH:/usr/local/go/bin:$GOPATH/bin
 # build kawana
 RUN go get github.com/tools/godep
 ADD . /go/src/github.com/chriskite/kawana
-WORKDIR /go/src/github.com/chriskite/kawana
-RUN godep go install github.com/chriskite/kawana/kawana-server
+WORKDIR /go/src/github.com/chriskite/kawana/kawana-server
+RUN godep go install
 
 # setup kawana service
 RUN mkdir /etc/service/kawana
