@@ -1,0 +1,16 @@
+{
+	"ImportPath": "github.com/chriskite/kawana/kawana-cli",
+	"GoVersion": "go1.5.1",
+	"Deps": [
+		{
+			"ImportPath": "github.com/codegangsta/cli",
+			"Comment": "1.2.0-95-g9b2bd2b",
+			"Rev": "9b2bd2b3489748d4d0a204fa4eb2ee9e89e0ebc6"
+		},
+		{
+			"ImportPath": "github.com/rlmcpherson/s3gof3r",
+			"Comment": "v0.4.10",
+			"Rev": "f423f73dc71a837c81d818c3c4721495181a5a7b"
+		}
+	]
+}

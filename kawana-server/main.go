@@ -3,9 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/rlmcpherson/s3gof3r"
+	"github.com/chriskite/kawana/kawana-server/Godeps/_workspace/src/github.com/rlmcpherson/s3gof3r"
 	"log"
-	"runtime"
 )
 
 type options struct {
@@ -14,7 +13,6 @@ type options struct {
 	s3Bucket        string
 	persistInterval int
 	backupInterval  int
-	procs           int
 }
 
 func (o options) String() string {
@@ -24,7 +22,6 @@ func (o options) String() string {
 	s += fmt.Sprintf("s3Bucket: %s, ", o.s3Bucket)
 	s += fmt.Sprintf("persistInterval: %d, ", o.persistInterval)
 	s += fmt.Sprintf("backupInterval: %d, ", o.backupInterval)
-	s += fmt.Sprintf("procs: %d", o.procs)
 	return s
 }
 
@@ -34,7 +31,6 @@ func main() {
 	s3Bucket := flag.String("s3Bucket", "", "S3 bucket for backup")
 	persistInterval := flag.Int("persist", 300, "persistence interval in seconds. 0 to disable")
 	backupInterval := flag.Int("backup", 0, "backup interval in seconds. 0 to disable")
-	procs := flag.Int("procs", 1, "GOMAXPROCS")
 	flag.Parse()
 
 	opts := options{
@@ -43,12 +39,9 @@ func main() {
 		s3Bucket:        *s3Bucket,
 		persistInterval: *persistInterval,
 		backupInterval:  *backupInterval,
-		procs:           *procs,
 	}
 
 	log.Println("Kawana startup -", opts)
-
-	runtime.GOMAXPROCS(opts.procs)
 
 	if opts.backupInterval > 0 {
 		if opts.s3Bucket != "" {

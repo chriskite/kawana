@@ -6,8 +6,8 @@ CMD ["/sbin/my_init"]
 RUN apt-get update && apt-get install -y wget git
 
 # install and setup go
-RUN wget https://storage.googleapis.com/golang/go1.4.2.linux-amd64.tar.gz
-RUN tar -C /usr/local -zxf go1.4.2.linux-amd64.tar.gz
+RUN wget https://storage.googleapis.com/golang/go1.5.1.linux-amd64.tar.gz
+RUN tar -C /usr/local -zxf go1.5.1.linux-amd64.tar.gz
 RUN mkdir /go
 ENV GOPATH=/go
 ENV PATH=$PATH:/usr/local/go/bin:$GOPATH/bin

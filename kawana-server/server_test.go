@@ -11,7 +11,7 @@ import (
 
 	"github.com/chriskite/kawana/datastore"
 
-	. "gopkg.in/check.v1"
+	. "github.com/chriskite/kawana/kawana-server/Godeps/_workspace/src/gopkg.in/check.v1"
 )
 
 // Hook up gocheck into the "go test" runner.

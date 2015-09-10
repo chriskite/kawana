@@ -4,7 +4,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"github.com/chriskite/kawana/datastore"
-	"github.com/codegangsta/cli"
+	"github.com/chriskite/kawana/kawana-cli/Godeps/_workspace/src/github.com/codegangsta/cli"
 	"os"
 )
 

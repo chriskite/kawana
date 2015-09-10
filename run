@@ -28,9 +28,4 @@ then
     flags+=( -port $KAWANA_PORT )
 fi
 
-if [ ! -z "$KAWANA_PROCS" ]
-then
-    flags+=( -procs $KAWANA_PROCS )
-fi
-
 exec /go/bin/kawana-server "${flags[@]}"
